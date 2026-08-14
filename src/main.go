@@ -16,18 +16,22 @@ import (
 	"github.com/itchyny/volume-go"
 )
 
-const inactive_color = "#555555"
-const active_color = "#c5c9c5"
-const color_green = "#55bb55"
-const color_blue = "#8888dd"
-const color_red = "#ff5555"
-const color_orange = "#ffbb55"
+const inactive_color     = "#555555"
+const active_color       = "#c5c9c5"
+const color_green        = "#55bb55"
+const color_blue         = "#8888dd"
+const color_red          = "#ff5555"
+const color_orange       = "#ffbb55"
+const color_light_yellow = "#ffffbd"
+const color_yellow       = "#ffff7b"
+
+
 const output_format = "<b><span foreground=\"%v\">ctrl</span> <span foreground=\"%v\">shift</span> <span foreground=\"%v\">alt</span> <span foreground=\"%v\" >meta</span> │" + // modkeys
 " power-prof: <span foreground=\"#ffbb55\">%v</span> │" + //powerprofile
 " wifi: <span foreground=\"%v\">%v</span> │" + // wifi
-" %v <span foreground=\"#ff5555\">%v%%</span> │" + // audio
-" <span foreground=\"%v\">%v</span> <span foreground=\"%v\">%v%%</span> <span foreground=\"#ffffbd\">%v</span> │ " + // battery
-" %v %v-%02d-%02d <span foreground=\"#ffff7b\">%02d:%02d:%02d</span></b>\n" // date time
+" %v <span foreground=\"" + color_red + "\">%v%%</span> │" + // audio
+" <span foreground=\"%v\">%v</span> <span foreground=\"%v\">%v%%</span> <span foreground=\"" + color_light_yellow + "\">%v</span> │" + // battery
+" %v %v-%02d-%02d <span foreground=\"" + color_yellow + "\">%02d:%02d:%02d</span></b>\n" // date time
 
 // battery datat structures
 type Bat struct {
