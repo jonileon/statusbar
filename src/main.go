@@ -1,22 +1,24 @@
 package main
 
 import (
-	"strings"
 	"bufio"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
+
 	"github.com/itchyny/volume-go"
 )
 
 const inactive_color = "#555555"
 const active_color = "#ffffff"
-const output_format = "<b><span foreground=\"%v\">ctrl</span> <span foreground=\"%v\">shift</span> <span foreground=\"%v\">alt</span> <span foreground=\"%v\" >super</span> │ power-prof: <span foreground=\"#ffbb55\">balanced-battery</span> │ wifi: <span foreground=\"#8888dd\">HaDiFunk</span> │ %v <span foreground=\"#ff5555\">%v%%</span> │  [BAT] %v%% <span foreground=\"#ffffbd\">(%02d:%02d)</span> │ %v %v-%02d-%02d <span foreground=\"#ffff7b\">%02d:%02d:%02d</span></b>"
+const output_format = "<b><span foreground=\"%v\">ctrl</span> <span foreground=\"%v\">shift</span> <span foreground=\"%v\">alt</span> <span foreground=\"%v\" >super</span> │ power-prof: <span foreground=\"#ffbb55\">%v</span> │ wifi: <span foreground=\"#8888dd\">HaDiFunk</span> │ %v <span foreground=\"#ff5555\">%v%%</span> │  [BAT] %v%% <span foreground=\"#ffffbd\">(%02d:%02d)</span> │ %v %v-%02d-%02d <span foreground=\"#ffff7b\">%02d:%02d:%02d</span></b>\n"
 
 // battery datat structures
 type Bat struct {
@@ -38,6 +40,7 @@ type ModKeys struct {
 var modkey_lock = sync.Mutex{}
 var modkey_data = ModKeys{}
 
+// volume data structures
 type VolumeInfo struct {
 	Muted bool
 	Volume uint8
@@ -45,15 +48,19 @@ type VolumeInfo struct {
 var volume_lock = sync.Mutex{}
 var volume_data = VolumeInfo{}
 
+// powerprofile
+var powerprofile = ""
+var powerprofile_lock = sync.Mutex{}
+
 
 func readIntFromFs(path string) int64 {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("os fs: ", err)
 	}
 	value, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("parse: ", err)
 	}
 	return value
 }
@@ -62,6 +69,7 @@ func main() {
 	go modkey_update()
 	go bat_update()
 	go volume_update()
+	go powerprofile_update()
 	for true {
 		now := time.Now()
 		year, month, day := now.Date()
@@ -98,10 +106,16 @@ func main() {
 		h := bat_data.Timeh
 		m := bat_data.Timem
 		bat_lock.Unlock()
+
+		powerprofile_lock.Lock()
+		profile := powerprofile
+		powerprofile_lock.Unlock()
 		
-		output, err := fmt.Printf(output_format,
+		fmt.Printf(output_format,
 			// modifier keys
 			ctrl, shift, alt, meta,
+			// powerprofile
+			profile,
 			// volume
 			vol_string, vol,
 			// battery
@@ -111,10 +125,6 @@ func main() {
 			year, int(month), day,
 			now.Hour(), now.Minute(), now.Second(),
 		)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println(output)
 
 		time.Sleep(500 * time.Millisecond)
 	}
@@ -126,7 +136,7 @@ func bat_update() {
 		capacity := readIntFromFs("/sys/class/power_supply/BAT0/capacity")
 		status, err := os.ReadFile("/sys/class/power_supply/BAT0/status")
 		if err != nil {
-			log.Fatal("Error while reading status")
+			log.Fatal("Error while reading battery status")
 		}
 		energy_now := readIntFromFs("/sys/class/power_supply/BAT0/energy_now")
 		power_now := readIntFromFs("/sys/class/power_supply/BAT0/power_now")
@@ -177,11 +187,11 @@ func volume_update() {
 	for true {
 		muted, err := volume.GetMuted()
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("volume: ", err)
 		}
 		vol, err := volume.GetVolume()
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("volume: ", err)
 		}
 
 		// update
@@ -191,5 +201,23 @@ func volume_update() {
 		volume_lock.Unlock()
 		
 		time.Sleep(500 * time.Millisecond)
+	}
+}
+
+func powerprofile_update() {
+	for true {
+		cmd := exec.Command("tuned-adm", "active")
+		output, err := cmd.Output()
+		if err != nil {
+			log.Fatal("powerprofile: ", err)
+		}
+		parts := strings.Fields(string(output))
+		profile := parts[len(parts) - 1]
+
+		powerprofile_lock.Lock()
+		powerprofile = profile
+		powerprofile_lock.Unlock()
+
+		time.Sleep(1000 * time.Millisecond)
 	}
 }
