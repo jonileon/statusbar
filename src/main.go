@@ -17,8 +17,17 @@ import (
 )
 
 const inactive_color = "#555555"
-const active_color = "#ffffff"
-const output_format = "<b><span foreground=\"%v\">ctrl</span> <span foreground=\"%v\">shift</span> <span foreground=\"%v\">alt</span> <span foreground=\"%v\" >super</span> │ power-prof: <span foreground=\"#ffbb55\">%v</span> │ wifi: <span foreground=\"#8888dd\">HaDiFunk</span> │ %v <span foreground=\"#ff5555\">%v%%</span> │  [BAT] %v%% <span foreground=\"#ffffbd\">(%02d:%02d)</span> │ %v %v-%02d-%02d <span foreground=\"#ffff7b\">%02d:%02d:%02d</span></b>\n"
+const active_color = "#c5c9c5"
+const color_green = "#55bb55"
+const color_blue = "#8888dd"
+const color_red = "#ff5555"
+const color_orange = "#ffbb55"
+const output_format = "<b><span foreground=\"%v\">ctrl</span> <span foreground=\"%v\">shift</span> <span foreground=\"%v\">alt</span> <span foreground=\"%v\" >meta</span> │" + // modkeys
+" power-prof: <span foreground=\"#ffbb55\">%v</span> │" + //powerprofile
+" wifi: <span foreground=\"%v\">%v</span> │" + // wifi
+" %v <span foreground=\"#ff5555\">%v%%</span> │" + // audio
+" <span foreground=\"%v\">%v</span> <span foreground=\"%v\">%v%%</span> <span foreground=\"#ffffbd\">%v</span> │ " + // battery
+" %v %v-%02d-%02d <span foreground=\"#ffff7b\">%02d:%02d:%02d</span></b>\n" // date time
 
 // battery datat structures
 type Bat struct {
@@ -52,6 +61,13 @@ var volume_data = VolumeInfo{}
 var powerprofile = ""
 var powerprofile_lock = sync.Mutex{}
 
+// wifi
+type Wifi struct {
+	active bool
+	name string
+}
+var wifi_lock = sync.Mutex{}
+var wifi_data = Wifi{}
 
 func readIntFromFs(path string) int64 {
 	data, err := os.ReadFile(path)
@@ -70,6 +86,7 @@ func main() {
 	go bat_update()
 	go volume_update()
 	go powerprofile_update()
+	go wifi_update()
 	for true {
 		now := time.Now()
 		year, month, day := now.Date()
@@ -101,11 +118,35 @@ func main() {
 		}
 		volume_lock.Unlock()
 
+		wifi_lock.Lock()
+		wifi_color := color_blue
+		wifi_name := wifi_data.name
+		if !wifi_data.active {
+			wifi_name = "none"
+			wifi_color = active_color
+		}
+		wifi_lock.Unlock()
+
+		bat_string := " [BAT]"
+		bat_string_color := active_color
 		bat_lock.Lock()
+		rem_string := "(--:--)"
 		bat := bat_data.Charge
-		h := bat_data.Timeh
-		m := bat_data.Timem
+		if !bat_data.IsCharging {
+			rem_string = fmt.Sprintf("(%02d:%02d)", rune(bat_data.Timeh), rune(bat_data.Timem))
+		} else {
+			bat_string = "+[BAT]"
+			bat_string_color = color_green
+		}
+		bat_color := active_color
 		bat_lock.Unlock()
+		if bat >= 70 {
+			bat_color = color_green
+		} else if bat <= 20 {
+			bat_color = color_red
+		} else if bat <= 40 {
+			bat_color = color_orange
+		}
 
 		powerprofile_lock.Lock()
 		profile := powerprofile
@@ -116,17 +157,19 @@ func main() {
 			ctrl, shift, alt, meta,
 			// powerprofile
 			profile,
+			//wifi
+			wifi_color, wifi_name,
 			// volume
 			vol_string, vol,
 			// battery
-			bat, h, m,
+			bat_string_color, bat_string, bat_color, bat, rem_string,
 			// time date
-			now.Weekday().String(),
+			now.Weekday().String()[:3],
 			year, int(month), day,
 			now.Hour(), now.Minute(), now.Second(),
 		)
 
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(250 * time.Millisecond)
 	}
 
 }
@@ -142,8 +185,10 @@ func bat_update() {
 		power_now := readIntFromFs("/sys/class/power_supply/BAT0/power_now")
 
 		var charging = false
-		if string(status) == "Charging" {
+		if strings.TrimSpace(string(status)) == "Charging" {
 			charging = true
+		} else {
+			charging = false
 		}
 		remaining := time.Duration(float64(energy_now) / float64(power_now) * float64(time.Hour))
 
@@ -219,5 +264,32 @@ func powerprofile_update() {
 		powerprofile_lock.Unlock()
 
 		time.Sleep(1000 * time.Millisecond)
+	}
+}
+
+func wifi_update() {
+	for true {
+		cmd := exec.Command("nmcli", "-f", "NAME,TYPE", "connection", "show", "--active")
+		output, err := cmd.Output()
+		if err != nil {
+			log.Fatal("wifi: ", err)
+		}
+		scanner := bufio.NewScanner(strings.NewReader(string(output)))
+		wifi_lock.Lock()
+		wifi_data.active = false
+		wifi_lock.Unlock()
+		for scanner.Scan() {
+			line := scanner.Text()
+			parts := strings.Fields(line)
+			if parts[len(parts) - 1] == "wifi" {
+				wifi_lock.Lock()
+				wifi_data.name = parts[0]
+				wifi_data.active = true
+				wifi_lock.Unlock()
+				break
+			}
+		}
+
+		time.Sleep(2000 * time.Millisecond)
 	}
 }
