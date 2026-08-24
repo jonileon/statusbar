@@ -235,12 +235,15 @@ func modkey_update() {
 func volume_update() {
 	for true {
 		muted, err := volume.GetMuted()
+		// volume control may be uninitialized on startup, so errors can be 'ignored'
 		if err != nil {
-			log.Fatal("volume: ", err)
+			println("volume: ", err)
+			continue
 		}
 		vol, err := volume.GetVolume()
 		if err != nil {
-			log.Fatal("volume: ", err)
+			println("volume: ", err)
+			continue
 		}
 
 		// update
