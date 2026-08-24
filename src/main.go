@@ -27,9 +27,9 @@ const color_yellow       = "#ffff7b"
 
 
 const output_format = "<b><span foreground=\"%v\">ctrl</span> <span foreground=\"%v\">shift</span> <span foreground=\"%v\">alt</span> <span foreground=\"%v\" >meta</span> │" + // modkeys
-" power-prof: <span foreground=\"#ffbb55\">%v</span> │" + //powerprofile
+" power-prof: <span foreground=\"" + color_orange + "\">%v</span> │" + //powerprofile
 " wifi: <span foreground=\"%v\">%v</span> │" + // wifi
-" %v <span foreground=\"" + color_red + "\">%v%%</span> │" + // audio
+" %v <span foreground=\"%v\">%v%%</span> │" + // audio
 " <span foreground=\"%v\">%v</span> <span foreground=\"%v\">%v%%</span> <span foreground=\"" + color_light_yellow + "\">%v</span> │" + // battery
 " %v %v-%02d-%02d <span foreground=\"" + color_yellow + "\">%02d:%02d:%02d</span></b>\n" // date time
 
@@ -114,6 +114,7 @@ func main() {
 		}
 		modkey_lock.Unlock()
 
+		vol_color := "#bff"
 		vol_string := "[VOL]"
 		volume_lock.Lock()
 		vol := volume_data.Volume
@@ -121,6 +122,9 @@ func main() {
 			vol_string = "[MUT]"
 		}
 		volume_lock.Unlock()
+		if vol == 0 {
+			vol_color = color_red
+		}
 
 		wifi_lock.Lock()
 		wifi_color := color_blue
@@ -164,7 +168,7 @@ func main() {
 			//wifi
 			wifi_color, wifi_name,
 			// volume
-			vol_string, vol,
+			vol_string, vol_color, vol,
 			// battery
 			bat_string_color, bat_string, bat_color, bat, rem_string,
 			// time date
