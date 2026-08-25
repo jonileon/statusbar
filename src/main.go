@@ -295,7 +295,11 @@ func wifi_update() {
 			parts := strings.Fields(line)
 			if parts[len(parts) - 1] == "wifi" {
 				wifi_lock.Lock()
-				wifi_data.name = parts[0]
+				name := parts[0]
+				for i := 1; i < len(parts) - 1; i ++ {
+					name = name + " " + parts[i]
+				}
+				wifi_data.name = name
 				wifi_data.active = true
 				wifi_lock.Unlock()
 				break
