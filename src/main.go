@@ -24,7 +24,7 @@ const color_red          = "#ff5555"
 const color_orange       = "#ffbb55"
 const color_light_yellow = "#ffffbd"
 const color_yellow       = "#ffff7b"
-
+const color_light_blue   = "#addddd"
 
 const output_format = "<b><span foreground=\"%v\">ctrl</span> <span foreground=\"%v\">shift</span> <span foreground=\"%v\">alt</span> <span foreground=\"%v\" >meta</span> │" + // modkeys
 " power-prof: <span foreground=\"" + color_orange + "\">%v</span> │" + //powerprofile
@@ -114,12 +114,13 @@ func main() {
 		}
 		modkey_lock.Unlock()
 
-		vol_color := "#bff"
+		vol_color := color_light_blue
 		vol_string := "[VOL]"
 		volume_lock.Lock()
 		vol := volume_data.Volume
 		if volume_data.Muted {
 			vol_string = "[MUT]"
+			vol_color = color_red
 		}
 		volume_lock.Unlock()
 		if vol == 0 {
